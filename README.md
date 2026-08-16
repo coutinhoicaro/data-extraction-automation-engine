@@ -2,50 +2,51 @@
 
 <div align="center">
 
+[![Type](https://img.shields.io/badge/Project-Architecture%20%26%20Reference%20Blueprint-blue?style=for-the-badge)](https://github.com/coutinhoicaro/data-extraction-automation-engine)
 [![Python](https://img.shields.io/badge/Language-Python%203.11%2B%20%7C%20AsyncIO-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Distributed](https://img.shields.io/badge/Architecture-Distributed%20Workers-0052CC?style=for-the-badge&logo=docker&logoColor=white)](docker-compose.yml)
-[![Cache](https://img.shields.io/badge/Broker-Redis%20%2F%20In--Memory%20Queues-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
-[![Storage](https://img.shields.io/badge/Warehouse-PostgreSQL%2016-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Throughput](https://img.shields.io/badge/Throughput-50k%2B%20Jobs%20%2F%20Day-2EA44F?style=for-the-badge&logo=speedtest&logoColor=white)](https://github.com/coutinhoicaro/data-extraction-automation-engine)
+[![Queue](https://img.shields.io/badge/Queue-Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-MIT-black?style=for-the-badge)](LICENSE)
 
 <br>
 
-**Enterprise Distributed Web Scraping, Proxy Swarm & Multimedia ETL Infrastructure**  
-*High-throughput async data extraction platform featuring residential proxy rotation, adaptive rate-limiting, circuit-breakers, and automated media pipeline ingestion.*
+**Distributed Web Scraping & Multimedia Data Extraction Architecture**  
+*An asynchronous pipeline designed for high-volume data collection, proxy pool rotation, retry handling, and automated media transcript ingestion.*
 
 </div>
 
 ---
 
-## 📌 Executive Summary
+## 📌 Overview
 
-Enterprise web data collection at scale suffers from anti-bot blocks, IP throttling, and fragile sequential scrapers.
+Scraping data at scale requires handling rate limits, IP blocks, and slow responses without crashing.
 
-**Data Extraction & Automation Engine** provides an asynchronous, distributed extraction architecture. It orchestrates residential proxy swarms, manages tokenized rate limits, normalizes raw unstructured payloads, and delivers verified records directly into PostgreSQL analytical warehouses.
+This project implements an **asynchronous distributed extraction architecture**:
+* Uses **residential proxy rotation** and exponential backoff to handle rate limits cleanly.
+* Queues tasks in **Redis** with worker pools processing jobs concurrently.
+* Integrates **FFmpeg** to extract audio from video assets and transcribe them into **PostgreSQL**.
 
 ---
 
-## 🏗️ Distributed Architecture
+## 🏗️ System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph IngestionLayer ["1. Ingestion & Proxy Swarm"]
-        SCRAPERS["Async Browser & Scraping Swarm"] -->|"Dynamic Residential IP Rotation"| PROXY["Proxy Pool Manager & Health Monitor"]
-        PROXY -->|"Anti-Bot & Rate-Limit Evasion"| BROKER["Redis Queue / Task Broker"]
+    subgraph Layer1 ["1. Proxy & Ingestion"]
+        SCRAPERS["Async Scraper Tasks"] --> PROXY["Proxy Rotation & Rate Limiter"]
+        PROXY --> BROKER["Redis Task Queue"]
     end
 
-    subgraph WorkerLayer ["2. Distributed Processing Workers"]
-        BROKER --> WORKERS["Distributed Task Workers (AsyncIO)"]
-        WORKERS -->|"Circuit-Breaker & Exponential Backoff"| RETRY{"Validation Passed?"}
-        RETRY -- "No" --> DLQ["Dead-Letter Queue (DLQ)"]
-        RETRY -- "Yes" --> MEDIA["Media ETL & Audio Extraction (FFmpeg)"]
-        MEDIA --> AI["Speech-to-Text Normalization (Whisper / Deepgram)"]
+    subgraph Layer2 ["2. Workers & Processing"]
+        BROKER --> WORKERS["Async Python Workers"]
+        WORKERS --> RETRY{"Request Success?"}
+        RETRY -- "Retry" --> BROKER
+        RETRY -- "Success" --> MEDIA["Audio Extraction (FFmpeg)"]
+        MEDIA --> SPEECH["Speech-to-Text Transcription"]
     end
 
-    subgraph StorageLayer ["3. Storage & Downstream Analytics"]
-        AI --> DB[("PostgreSQL Analytics Warehouse")]
-        DB --> BI["BI Dashboards & AI Search Engines"]
+    subgraph Layer3 ["3. Storage"]
+        SPEECH --> DB[("PostgreSQL Analytics Database")]
     end
 
     style SCRAPERS fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#fff
@@ -58,48 +59,9 @@ flowchart TD
 
 ## 🌟 Core Modules
 
-### 1️⃣ Browser Automation Swarm (`src/browser_automation_engine.py`)
-* **Anti-Bot Evasion:** Bypasses headless detection via simulated user interactions, mouse trajectories, and randomized delay windows.
-* **Concurrency:** Fully asynchronous orchestration using Python `asyncio` and non-blocking worker pools.
-
-### 2️⃣ Resilient Task Worker & Proxy Manager (`src/distributed_task_worker.py`)
-* **Proxy Pool Rotation:** Dynamic routing across residential and datacenter proxies with auto-quarantine for failing IP nodes.
-* **Fault Tolerance:** Circuit-breaker pattern with jittered exponential backoff and dead-letter queue (DLQ) containment.
-
-### 3️⃣ Multimedia ETL & Ingestion Pipeline (`src/video_pipeline_orchestrator.py`)
-* **Automated Asset Ingestion:** Downloads, extracts audio streams via FFmpeg, normalizes audio waveforms, and delivers clean transcripts to PostgreSQL.
-
----
-
-## 📊 Production Performance & SLA Benchmarks
-
-| Metric | Target SLA | Measured Benchmark |
-| :--- | :--- | :--- |
-| **Job Throughput** | `> 25,000 / day` | **52,400 completed jobs / day** |
-| **Extraction Success Rate** | `> 98.0%` | **99.2% (with automated proxy retries)** |
-| **Anti-Bot Bypass Ratio** | `> 95.0%` | **98.4% across Cloudflare & Datadome targets** |
-| **Average Task Latency** | `< 1.5s` | **420ms (P50) / 1.1s (P95)** |
-
----
-
-## 🚀 Quickstart
-
-### Prerequisites
-* Docker & Docker Compose
-* Python 3.11+
-
-### Running with Docker Compose
-```bash
-# 1. Clone repository
-git clone https://github.com/coutinhoicaro/data-extraction-automation-engine.git
-cd data-extraction-automation-engine
-
-# 2. Start Redis, PostgreSQL & Worker cluster
-docker-compose up -d
-
-# 3. View live worker logs
-docker-compose logs -f worker
-```
+1. **Browser & Scraping Automation (`src/browser_automation_engine.py`):** Asynchronous web extraction handling dynamic content and delays.
+2. **Distributed Task Worker (`src/distributed_task_worker.py`):** Worker loop managing proxy health and retry backoffs.
+3. **Media & Transcript Ingestion (`src/video_pipeline_orchestrator.py`):** Extracts audio tracks and formats text for database storage.
 
 ---
 
@@ -108,14 +70,16 @@ docker-compose logs -f worker
 ```
 data-extraction-automation-engine/
 ├── src/
-│   ├── browser_automation_engine.py        # Async Browser Swarm & Evasion Engine
-│   ├── distributed_task_worker.py          # Redis Task Worker & Proxy Pool Manager
-│   └── video_pipeline_orchestrator.py      # FFmpeg Media ETL & Transcript Ingestion
-├── docker-compose.yml                      # Production Redis + Postgres + Worker Spec
-├── requirements.txt                        # Python Dependencies
+│   ├── browser_automation_engine.py        # Async Browser & Extraction Logic
+│   ├── distributed_task_worker.py          # Redis Worker & Proxy Rotation
+│   └── video_pipeline_orchestrator.py      # Media ETL & Transcript Ingestion
+├── docker-compose.yml                      # Local Environment Setup Sample
+├── requirements.txt                        # Dependencies
 ├── LICENSE                                 # MIT License
-└── README.md                               # Architecture Overview & Benchmark Specs
+└── README.md                               # Architecture Overview
 ```
+
+> **Note:** This repository is an **architectural reference implementation**. Production proxy credentials and target scraper configurations are managed in private environments.
 
 ---
 
